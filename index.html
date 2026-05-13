@@ -67,6 +67,8 @@
       font-size: 1.1rem;
       line-height: 1.6;
       margin-bottom: 16px;
+      word-wrap: break-word;
+      white-space: pre-wrap;
     }
     .transcript-box.listening { border-color: var(--accent-color); }
     .interim { opacity: 0.5; font-style: italic; }
@@ -155,7 +157,16 @@
     let finalTranscript = '';
     let recInterval = null;
     let recSeconds = 0;
-    let history = JSON.parse(localStorage.getItem('tamilHistory') || '[]');
+    let animationId = null;
+    let history = [];
+
+    // Safe localStorage access with error handling
+    try {
+      history = JSON.parse(localStorage.getItem('tamilHistory') || '[]');
+    } catch (e) {
+      console.error('localStorage error:', e);
+      history = [];
+    }
 
     const vizWrapper = document.getElementById('vizWrapper');
     const BAR_COUNT = 24;
@@ -174,7 +185,7 @@
         b.classList.remove('idle');
         b.style.height = Math.floor(Math.random() * 32 + 4) + 'px';
       });
-      setTimeout(animateBars, 100);
+      animationId = setTimeout(animateBars, 100);
     }
 
     function updateStats() {
@@ -219,8 +230,12 @@
             interimTranscript += event.results[i][0].transcript;
           }
         }
-        document.getElementById('transcriptBox').innerHTML = 
-          finalTranscript + `<span class="interim">${interimTranscript}</span>`;
+        const transcriptBox = document.getElementById('transcriptBox');
+        transcriptBox.textContent = finalTranscript;
+        const interimSpan = document.createElement('span');
+        interimSpan.className = 'interim';
+        interimSpan.textContent = interimTranscript;
+        transcriptBox.appendChild(interimSpan);
         updateStats();
       };
 
@@ -229,13 +244,22 @@
         stopListening();
       };
 
-      recognition.onend = () => { if (isListening) recognition.start(); };
+      recognition.onend = () => { 
+        if (isListening) recognition.start(); 
+      };
       recognition.start();
     }
 
     function stopListening() {
       isListening = false;
-      if (recognition) { recognition.onend = null; recognition.stop(); }
+      if (recognition) { 
+        recognition.onend = null;
+        recognition.abort();
+      }
+      if (animationId) {
+        clearTimeout(animationId);
+        animationId = null;
+      }
       clearInterval(recInterval);
       document.getElementById('startBtn').disabled = false;
       document.getElementById('stopBtn').disabled = true;
@@ -244,7 +268,7 @@
     }
 
     function copyText() {
-      const text = finalTranscript.trim() || document.getElementById('transcriptBox').innerText;
+      const text = finalTranscript.trim() || document.getElementById('transcriptBox').textContent;
       if (!text) return;
       navigator.clipboard.writeText(text).then(() => alert("Copied to clipboard!"));
     }
@@ -252,14 +276,14 @@
     function clearTranscript() {
       if (confirm("Clear layout?")) {
         finalTranscript = '';
-        document.getElementById('transcriptBox').innerHTML = '';
+        document.getElementById('transcriptBox').textContent = '';
         updateStats();
         document.getElementById('recTime').textContent = '0s';
       }
     }
 
     function downloadTxt() {
-      const t = finalTranscript.trim() || document.getElementById('transcriptBox').innerText;
+      const t = finalTranscript.trim() || document.getElementById('transcriptBox').textContent;
       if (!t) return;
       const blob = new Blob([t], { type: 'text/plain;charset=utf-8' });
       const url = URL.createObjectURL(blob);
@@ -267,14 +291,20 @@
       a.href = url;
       a.download = `tamil_notes_${new Date().toLocaleDateString()}.txt`;
       a.click();
+      URL.revokeObjectURL(url);
     }
 
     function saveToHistory() {
       const text = finalTranscript.trim();
       if (!text) return;
       history.unshift({ id: Date.now(), date: new Date().toLocaleString(), content: text });
-      localStorage.setItem('tamilHistory', JSON.stringify(history));
-      alert("Saved locally!");
+      try {
+        localStorage.setItem('tamilHistory', JSON.stringify(history));
+        alert("Saved locally!");
+      } catch (e) {
+        console.error('localStorage error:', e);
+        alert("Failed to save. Storage may be full or disabled.");
+      }
     }
   </script>
 </body>
