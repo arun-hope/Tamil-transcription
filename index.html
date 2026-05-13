@@ -417,7 +417,7 @@
   <div class="card">
     <div class="card-title">எழுத்தாக்கம் · Live Transcript</div>
 
-    <div class="transcript-box" id="transcriptBox" class="listening"></div>
+    <div class="transcript-box" id="transcriptBox"></div>
 
     <div class="stats" style="margin-top:16px;">
       <div class="stat-chip">📝 Words: <span id="wordCount">0</span></div>
@@ -451,8 +451,15 @@
   let finalTranscript = '';
   let recInterval = null;
   let recSeconds = 0;
-  let history = JSON.parse(localStorage.getItem('tamilHistory') || '[]');
-  let barAnimFrames = [];
+  let history = [];
+
+  // Safe localStorage access
+  try {
+    history = JSON.parse(localStorage.getItem('tamilHistory') || '[]');
+  } catch (e) {
+    console.error('localStorage error:', e);
+    history = [];
+  }
 
   // Init bars
   const vizWrapper = document.getElementById('vizWrapper');
@@ -559,7 +566,10 @@
 
   function stopListening() {
     isListening = false;
-    if (recognition) { recognition.onend = null; recognition.stop(); }
+    if (recognition) { 
+      recognition.onend = null; 
+      recognition.abort();
+    }
     clearInterval(recInterval);
     document.getElementById('startBtn').disabled = false;
     document.getElementById('stopBtn').disabled = true;
@@ -600,10 +610,15 @@
     const t = finalTranscript.trim();
     if (!t) return;
     history.unshift({ text: t, time: new Date().toLocaleString('ta-IN') });
-    localStorage.setItem('tamilHistory', JSON.stringify(history));
-    renderHistory();
-    setStatus('idle', '✅ Saved!');
-    setTimeout(() => setStatus('idle', 'Ready | தயார்'), 1500);
+    try {
+      localStorage.setItem('tamilHistory', JSON.stringify(history));
+      setStatus('idle', '✅ Saved!');
+      renderHistory();
+      setTimeout(() => setStatus('idle', 'Ready | தயார்'), 1500);
+    } catch (e) {
+      console.error('localStorage error:', e);
+      setStatus('error', '❌ Failed to save');
+    }
   }
 
   function renderHistory() {
@@ -635,323 +650,14 @@
   }
 
   function clearHistory() {
-    history = [];
-    localStorage.setItem('tamilHistory', JSON.stringify(history));
-    renderHistory();
+    if (confirm('Clear all saved transcripts?')) {
+      history = [];
+      localStorage.setItem('tamilHistory', JSON.stringify(history));
+      renderHistory();
+    }
   }
 
   renderHistory();
 </script>
-</body>
-</html>
- html>
-<html lang="ta">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tamil Speech to Text</title>
-  <style>
-    :root {
-      --bg-color: #121214;
-      --card-bg: #1a1a1e;
-      --text-color: #e2e8f0;
-      --accent-color: #ef4444;
-      --btn-hover: #2d2d34;
-      --border-color: #2a2a32;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      background-color: var(--bg-color);
-      color: var(--text-color);
-      font-family: system-ui, -apple-system, sans-serif;
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      min-height: 100vh;
-    }
-    .container {
-      width: 100%;
-      max-width: 500px;
-      background: var(--card-bg);
-      border: 1px solid var(--border-color);
-      border-radius: 16px;
-      padding: 20px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-    }
-    h2 { font-size: 1.4rem; margin-bottom: 16px; text-align: center; color: #fff; }
-    .action-bar {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 8px;
-      margin-bottom: 16px;
-    }
-    .btn {
-      background: transparent;
-      border: 1px solid var(--border-color);
-      color: var(--text-color);
-      padding: 10px 4px;
-      border-radius: 8px;
-      font-size: 0.85rem;
-      cursor: pointer;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 4px;
-      transition: background 0.2s;
-    }
-    .btn:hover { background: var(--btn-hover); }
-    .transcript-box {
-      background: #09090b;
-      border: 1px solid var(--border-color);
-      border-radius: 12px;
-      padding: 16px;
-      min-height: 200px;
-      max-height: 350px;
-      overflow-y: auto;
-      scroll-behavior: smooth;
-      font-size: 1.1rem;
-      line-height: 1.6;
-      margin-bottom: 16px;
-      word-wrap: break-word;
-      white-space: pre-wrap;
-    }
-    .transcript-box.listening { border-color: var(--accent-color); }
-    .interim { opacity: 0.5; font-style: italic; }
-    .controls-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 16px;
-    }
-    select {
-      background: var(--btn-hover);
-      color: #fff;
-      border: 1px solid var(--border-color);
-      padding: 10px;
-      border-radius: 8px;
-      flex-grow: 1;
-    }
-    .main-controls { display: flex; gap: 8px; }
-    .btn-main {
-      padding: 10px 20px;
-      border-radius: 8px;
-      border: none;
-      font-weight: bold;
-      cursor: pointer;
-    }
-    #startBtn { background: #22c55e; color: #fff; }
-    #stopBtn { background: #ef4444; color: #fff; }
-    #startBtn:disabled, #stopBtn:disabled { opacity: 0.4; cursor: not-allowed; }
-    .status-panel {
-      font-size: 0.85rem;
-      color: #94a3b8;
-      display: flex;
-      justify-content: space-between;
-      border-top: 1px solid var(--border-color);
-      padding-top: 12px;
-    }
-    .viz-wrapper {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 3px;
-      height: 40px;
-      margin-bottom: 12px;
-    }
-    .bar { width: 4px; height: 4px; background: var(--accent-color); border-radius: 2px; transition: height 0.1s; }
-    .bar.idle { background: var(--border-color); height: 4px !important; }
-  </style>
-</head>
-<body>
-
-  <div class="container">
-    <h2>Tamil Speech to Text</h2>
-    
-    <div class="action-bar">
-      <button class="btn" onclick="copyText()"><span>📋</span>Copy</button>
-      <button class="btn" onclick="downloadTxt()"><span>💾</span>Save Txt</button>
-      <button class="btn" onclick="saveToHistory()"><span>🗂</span>History</button>
-      <button class="btn" onclick="clearTranscript()"><span>🗑</span>Clear</button>
-    </div>
-
-    <div class="viz-wrapper" id="vizWrapper"></div>
-    <div class="transcript-box" id="transcriptBox"></div>
-
-    <div class="controls-row">
-      <select id="langSelect">
-        <option value="ta-IN" selected>Tamil (தமிழ்)</option>
-        <option value="en-US">English</option>
-      </select>
-      <div class="main-controls">
-        <button id="startBtn" class="btn-main" onclick="startListening()">Start</button>
-        <button id="stopBtn" class="btn-main" onclick="stopListening()" disabled>Stop</button>
-      </div>
-    </div>
-
-    <div class="status-panel">
-      <span id="statusText">Ready / தயார்</span>
-      <span>Time: <b id="recTime">0s</b> | W: <b id="wordCount">0</b> | C: <b id="charCount">0</b></span>
-    </div>
-  </div>
-
-  <script>
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    let recognition = null;
-    let isListening = false;
-    let finalTranscript = '';
-    let recInterval = null;
-    let recSeconds = 0;
-    let animationId = null;
-    let history = [];
-
-    // Safe localStorage access with error handling
-    try {
-      history = JSON.parse(localStorage.getItem('tamilHistory') || '[]');
-    } catch (e) {
-      console.error('localStorage error:', e);
-      history = [];
-    }
-
-    const vizWrapper = document.getElementById('vizWrapper');
-    const BAR_COUNT = 24;
-    for (let i = 0; i < BAR_COUNT; i++) {
-      const bar = document.createElement('div');
-      bar.className = 'bar idle';
-      vizWrapper.appendChild(bar);
-    }
-
-    function animateBars() {
-      if (!isListening) {
-        document.querySelectorAll('.bar').forEach(b => b.classList.add('idle'));
-        return;
-      }
-      document.querySelectorAll('.bar').forEach(b => {
-        b.classList.remove('idle');
-        b.style.height = Math.floor(Math.random() * 32 + 4) + 'px';
-      });
-      animationId = setTimeout(animateBars, 100);
-    }
-
-    function updateStats() {
-      const text = finalTranscript.trim();
-      const words = text ? text.split(/\s+/).length : 0;
-      document.getElementById('wordCount').textContent = words;
-      document.getElementById('charCount').textContent = text.length;
-      const box = document.getElementById('transcriptBox');
-      box.scrollTop = box.scrollHeight;
-    }
-
-    function startListening() {
-      if (!SpeechRecognition) {
-        alert("Speech recognition not supported in this browser. Use Chrome/Safari.");
-        return;
-      }
-      isListening = true;
-      recognition = new SpeechRecognition();
-      recognition.lang = document.getElementById('langSelect').value;
-      recognition.continuous = true;
-      recognition.interimResults = true;
-
-      recognition.onstart = () => {
-        document.getElementById('startBtn').disabled = true;
-        document.getElementById('stopBtn').disabled = false;
-        document.getElementById('transcriptBox').classList.add('listening');
-        document.getElementById('statusText').textContent = '🔴 Recording...';
-        recSeconds = 0;
-        recInterval = setInterval(() => {
-          recSeconds++;
-          document.getElementById('recTime').textContent = recSeconds + 's';
-        }, 1000);
-        animateBars();
-      };
-
-      recognition.onresult = (event) => {
-        let interimTranscript = '';
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            finalTranscript += event.results[i][0].transcript + ' ';
-          } else {
-            interimTranscript += event.results[i][0].transcript;
-          }
-        }
-        const transcriptBox = document.getElementById('transcriptBox');
-        transcriptBox.textContent = finalTranscript;
-        const interimSpan = document.createElement('span');
-        interimSpan.className = 'interim';
-        interimSpan.textContent = interimTranscript;
-        transcriptBox.appendChild(interimSpan);
-        updateStats();
-      };
-
-      recognition.onerror = (event) => {
-        document.getElementById('statusText').textContent = '❌ Error: ' + event.error;
-        stopListening();
-      };
-
-      recognition.onend = () => { 
-        if (isListening) recognition.start(); 
-      };
-      recognition.start();
-    }
-
-    function stopListening() {
-      isListening = false;
-      if (recognition) { 
-        recognition.onend = null;
-        recognition.abort();
-      }
-      if (animationId) {
-        clearTimeout(animationId);
-        animationId = null;
-      }
-      clearInterval(recInterval);
-      document.getElementById('startBtn').disabled = false;
-      document.getElementById('stopBtn').disabled = true;
-      document.getElementById('transcriptBox').classList.remove('listening');
-      document.getElementById('statusText').textContent = '✅ Finished';
-    }
-
-    function copyText() {
-      const text = finalTranscript.trim() || document.getElementById('transcriptBox').textContent;
-      if (!text) return;
-      navigator.clipboard.writeText(text).then(() => alert("Copied to clipboard!"));
-    }
-
-    function clearTranscript() {
-      if (confirm("Clear layout?")) {
-        finalTranscript = '';
-        document.getElementById('transcriptBox').textContent = '';
-        updateStats();
-        document.getElementById('recTime').textContent = '0s';
-      }
-    }
-
-    function downloadTxt() {
-      const t = finalTranscript.trim() || document.getElementById('transcriptBox').textContent;
-      if (!t) return;
-      const blob = new Blob([t], { type: 'text/plain;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `tamil_notes_${new Date().toLocaleDateString()}.txt`;
-      a.click();
-      URL.revokeObjectURL(url);
-    }
-
-    function saveToHistory() {
-      const text = finalTranscript.trim();
-      if (!text) return;
-      history.unshift({ id: Date.now(), date: new Date().toLocaleString(), content: text });
-      try {
-        localStorage.setItem('tamilHistory', JSON.stringify(history));
-        alert("Saved locally!");
-      } catch (e) {
-        console.error('localStorage error:', e);
-        alert("Failed to save. Storage may be full or disabled.");
-      }
-    }
-  </script>
 </body>
 </html>
