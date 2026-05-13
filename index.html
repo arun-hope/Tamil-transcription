@@ -1,1 +1,47 @@
+<!DOCTYPE html>
+<html lang="ta">
+<head>
+    <meta charset="UTF-8">
+    <title>Tamil Speech to Text</title>
+    
+    <!-- Paste your CSS/Style block here -->
+    <style>
+      /* ... your existing styles ... */
+      .transcript-box {
+        max-height: 400px; 
+        overflow-y: auto;
+        scroll-behavior: smooth;
+      }
+    </style>
+</head>
+<body>
+
+    <!-- Paste your HTML layout and Action Bar here -->
+    <div class="action-bar">
+      <button class="btn btn-ghost" onclick="copyText()">📋 Copy</button>
+      <button class="btn btn-ghost" onclick="downloadTxt()">💾 Download</button>
+      <button class="btn btn-ghost" onclick="saveToHistory()">🗂 Save</button>
+      <button class="btn btn-ghost" onclick="clearTranscript()">🗑 Clear</button>
+    </div>
+    
+    <!-- Add your transcriptBox and vizWrapper elements here if not already present -->
+    <div id="vizWrapper"></div>
+    <div id="transcriptBox"></div>
+    <span id="wordCount">0</span>
+    <span id="charCount">0</span>
+    <span id="statusDot"></span>
+    <span id="statusText"></span>
+    <span id="recTime">0s</span>
+    <button id="startBtn">Start</button>
+    <button id="stopBtn" disabled>Stop</button>
+    <select id="langSelect"><option value="ta-IN">Tamil</option></select>
+
+    <!-- Paste your Script block here -->
+    <script>
+      // Paste the complete JavaScript code block containing startListening(), 
+      // copyText(), downloadTxt(), and saveToHistory() here
+    </script>
+
+</body>
+</html>
 
